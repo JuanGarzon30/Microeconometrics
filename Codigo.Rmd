@@ -1,0 +1,491 @@
+---
+title: "R Notebook"
+output:
+  html_document:
+    theme: united
+    highlight: textmate
+    toc: true
+    toc_float: true
+    toc_depth: 2
+---
+```{r 1)Preámbulo}
+ #Takehome Microeconometría - Daniel Enrique Mendoza - Juan Esteban Garzón
+####----
+#Llamar librerias
+
+library(readxl)
+library(dplyr)
+library(ggplot2)
+library(knitr)
+library(gridExtra)
+library(openxlsx)
+
+#Dirección del archivo
+path <-normalizePath(file.choose())
+#Leer el excel
+datos <- excel_sheets(path)
+for (i in 1:length(datos)) {
+  # Leer cada hoja del archivo Excel y guardarla como un objeto separado
+  assign(datos[i], as.data.frame(read_excel(path, sheet = i)))
+}
+
+#Source
+source(file=file.choose())
+#Asignar variables
+
+Pjade <- Jade$"precio"
+Qjade <- Jade$"cantidades"
+Pveronesse <- Veronesse$"precio"
+Qveronesse <- Veronesse$"cantidades"
+
+```
+
+```{r 1)Estimación}
+   
+#Gráficas
+##Gráfica con outliers Jade
+ginicialjade<-ggplot(data = data.frame(Pjade, Qjade), aes(x = Qjade, y = Pjade)) +
+  geom_point(color="#49a360", size = 1.2) +
+  labs(x = "Cantidad", y = "Precio") + ggtitle("Datos iniciales isla Jade") +
+  theme_bw() +theme(plot.title = element_text(hjust = 0.5))+
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(), panel.background = element_rect(fill = "#F0F0F0"))
+##Gráfica con outliers Veronesse
+ginicialveronesse<-ggplot(data = data.frame(Pveronesse, Qveronesse), aes(x = Qveronesse, y = Pveronesse)) +
+  geom_point(color="#49a360", size = 1.2) +
+  labs(x = "Cantidad", y = "Precio") + ggtitle("Datos iniciales isla Veronesse") +
+  theme_bw() +theme(plot.title = element_text(hjust = 0.5))+
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(), panel.background = element_rect(fill = "#F0F0F0"))
+
+
+grid.arrange(ginicialjade,ginicialveronesse, ncol=2)
+
+#Al graficar la dispersión de los datos de la encuesta de demanda para las 2 islas, se puede observar que hay un outlier que está afectando la estimación en la isla de Jade, por ello, sabiendo que el método de OLS es sensible a daos atípicos, se decide eliminar el dato de la posicion 250 que es precisamente el outlier 
+
+#Eliminación de outliers
+
+Qjade<-Qjade[-250]
+Pjade<-Pjade[-250]
+
+#Construcción de las matrices de diseño
+matrdisejade<-cbind(1,Pjade)
+matrdiseveronesse<-cbind(1,Pveronesse)
+
+#Estimación
+betasjade<-ols.matr(x=matrdisejade, y=Qjade)
+b0jade<-betasjade[1]
+b1jade<-betasjade[2]
+estimacion(x=matrdisejade,y=Qjade,k=2)
+
+betasveronesse<-ols.matr(x=matrdiseveronesse,y=Qveronesse)
+b0veronesse<-betasveronesse[1]
+b1veronesse<-betasveronesse[2]
+estimacion(x=matrdiseveronesse, y=Qveronesse, k=2)
+```
+
+```{r 1)Normalidad y Correlación}
+#Test Jarque-Bera para normalidad
+jarque.bera(Qjade)
+jarque.bera(Pjade)
+corr.pearson(x=Pjade,y=Qjade)
+             
+jarque.bera(Qveronesse)
+jarque.bera(Pveronesse)
+corr.pearson(x=Pveronesse,y=Qveronesse)
+```
+
+```{r 1)Isla Jade}
+b0grafjade<--b0jade/b1jade
+b1grafjade<-1/b1jade
+
+Pofertajade<-5000+40*Qjade
+ggplot(data = data.frame(Pjade, Qjade), aes(x = Qjade, y = Pjade)) +
+  geom_point(color="#49a360", size = 1.2) +
+  geom_abline(intercept = b0grafjade, slope = b1grafjade, color = "#495ba3", size = 0.8)+
+  geom_line(aes(y=Pofertajade),color="#e74c3c",linewidth=0.8)+ theme_bw() +
+  labs(x = "Cantidad", y = "Precio") + ggtitle("Equilibrio inicial antes de impuestos isla Jade") +
+  theme_bw() +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(), panel.background = element_rect(fill = "#F0F0F0"))
+
+
+```
+
+```{r 1)Isla Veronesse}
+b0grafveronesse<--b0veronesse/b1veronesse
+b1grafveronesse<-1/b1veronesse
+
+Pofertaveronesse<-1500+30*Qveronesse
+ggplot(data = data.frame(Pveronesse, Qveronesse), aes(x = Qveronesse, y = Pveronesse)) +
+  geom_point(color="#49a360", size = 1.2) +
+  geom_abline(intercept = b0grafveronesse, slope = b1grafveronesse, color = "#495ba3", size = 0.8)+
+  geom_line(aes(y=Pofertaveronesse),color="#e74c3c",linewidth=0.8)+ theme_bw() +
+  labs(x = "Cantidad", y = "Precio") + ggtitle("Equilibrio inicial antes de impuestos Isla veronesse") +
+  theme_bw() +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(), panel.background = element_rect(fill = "#F0F0F0"))
+
+```
+
+```{r Isla Jade con impuestos gobierno}
+b0grafjade<--b0jade/b1jade
+b1grafjade<-1/b1jade
+
+Pofertajade<-5000+40*Qjade
+Pofertatjade<-5000+40*Qjade+21000
+puntoslinea_ver <- data.frame(x = c(152.0438, 152.0438), y = c(32081.7502, 11081.7502))
+puntoslinea_hor1 <- data.frame(x1 = c(0,152.0438), y1 = c(32081.7502,32081.7502))
+puntoslinea_hor2 <- data.frame(x2 = c(0,152.0438), y2 = c(11081.7502,11081.7502))
+
+ggplot(data = data.frame(Pjade, Qjade), aes(x = Qjade, y = Pjade)) +
+  geom_abline(intercept = b0grafjade, slope = b1grafjade, color = "#495ba3", size = 0.8)+
+  geom_line(aes(y=Pofertajade),color="#e74c3c",linewidth=0.8)+
+  geom_line(aes(y=Pofertatjade),color="#d96214",linewidth=1,linetype = "dashed")+
+  geom_point(x = 152.0438, y = 32081.7502, shape = 19, size = 3, color = "black", fill="black") +
+  geom_point(x = 152.0438, y = 11081.7502, shape = 19, size = 3, color = "black", fill="black") +
+  geom_line(data = puntoslinea_ver, aes(x = x, y = y), color = "purple", size = 0.8) + 
+  geom_line(data = puntoslinea_hor1, aes(x = x1, y = y1), color = "purple", size = 0.8) +   geom_line(data = puntoslinea_hor2, aes(x = x2, y = y2), color = "purple", size = 0.8) +
+  theme_bw() +
+  labs(x = "Cantidad", y = "Precio") + ggtitle("Equilibrio después de los impuestos propuestos por el gobierno - Isla Jade") +
+  theme_bw() +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(), panel.background = element_rect(fill = "#F0F0F0")) + 
+  coord_cartesian(xlim = c(45, max(Qjade)))
+```
+
+```{r Isla Veronesse con impuestos gobierno}
+b0grafveronesse<--b0veronesse/b1veronesse
+b1grafveronesse<-1/b1veronesse
+
+Pofertaveronesse<-1500+30*Qveronesse
+Pofertatveronesse<-1500+30*Qveronesse + 2800
+
+puntoslinea_verVTG <- data.frame(xVTG = c(27.3733, 27.3733), yVTG = c(5121.20, 2321.20))
+puntoslinea_hor1VTG <- data.frame(x1VTG = c(0,27.3733), y1VTG = c(2321.2,2321.2))
+puntoslinea_hor2VTG <- data.frame(x2VTG = c(0,27.3733), y2VTG = c(5121.20,5121.20))
+
+ggplot(data = data.frame(Pveronesse, Qveronesse), aes(x = Qveronesse, y = Pveronesse)) +
+  geom_abline(intercept = b0grafveronesse, slope = b1grafveronesse, color = "#495ba3", size = 0.8)+
+  geom_line(aes(y=Pofertaveronesse),color="#e74c3c",linewidth=0.8)+
+  geom_line(aes(y=Pofertatveronesse),color="#d96214",linewidth=1,linetype = "dashed")+
+  geom_point(x = 27.3733, y = 5121.20, shape = 19, size = 3, color = "black", fill="black") +
+  geom_point(x = 27.3733, y = 2321.20, shape = 19, size = 3, color = "black", fill="black") +
+  geom_line(data = puntoslinea_verVTG, aes(x = xVTG, y = yVTG), color = "purple", size = 0.8) + 
+  geom_line(data = puntoslinea_hor1VTG, aes(x = x1VTG, y = y1VTG), color = "purple", size = 0.8) +   geom_line(data = puntoslinea_hor2VTG, aes(x = x2VTG, y = y2VTG), color = "purple", size = 0.8) +
+  theme_bw() +
+  labs(x = "Cantidad", y = "Precio") + ggtitle("Equilibrio después de los impuestos propuestos por el gobierno - Isla Veronesse") +
+  theme_bw() +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(), panel.background = element_rect(fill = "#F0F0F0")) +
+  ylim(10, 8000) +
+  xlim(0, 250)
+```
+
+```{r Isla Jade con la contrapropuesta}
+b0grafjade<--b0jade/b1jade
+b1grafjade<-1/b1jade
+
+Pofertajade<-5000+40*Qjade
+Pofertat2jade<-5000+40*Qjade+15902.23015
+puntoslinea_verJT <- data.frame(xJT = c(223.78294, 223.78294), yJT = c(29853.54802, 13951.31787))
+puntoslinea_hor1JT <- data.frame(x1JT = c(0,223.78294), y1JT = c(29853.54802,29853.54802))
+puntoslinea_hor2JT <- data.frame(x2JT = c(0,223.78294), y2JT = c(13951.31787,13951.31787))
+
+ggplot(data = data.frame(Pjade, Qjade), aes(x = Qjade, y = Pjade)) +
+  geom_abline(intercept = b0grafjade, slope = b1grafjade, color = "#495ba3", size = 0.8)+
+  geom_line(aes(y=Pofertajade),color="#e74c3c",linewidth=0.8)+
+  geom_line(aes(y=Pofertat2jade),color="#4bad59",linewidth=1,linetype = "dashed")+
+  geom_point(x = 223.78294, y = 29853.54802, shape = 19, size = 3, color = "black", fill="black") +
+  geom_point(x = 223.78294, y = 13951.31787, shape = 19, size = 3, color = "black", fill="black") +
+  geom_line(data = puntoslinea_verJT, aes(x = xJT, y = yJT), color = "purple", size = 0.8) + 
+  geom_line(data = puntoslinea_hor1JT, aes(x = x1JT, y = y1JT), color = "purple", size = 0.8) +   geom_line(data = puntoslinea_hor2JT, aes(x = x2JT, y = y2JT), color = "purple", size = 0.8) +
+  theme_bw() +
+  labs(x = "Cantidad", y = "Precio") + ggtitle("Equilibrio después de la contrapropuesta - Isla Jade") +
+  theme_bw() +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(), panel.background = element_rect(fill = "#F0F0F0")) + 
+  coord_cartesian(xlim = c(0, max(Qjade)))
+```
+
+```{r Isla Veronesse con la contrapropuesta}
+b0grafveronesse<--b0veronesse/b1veronesse
+b1grafveronesse<-1/b1veronesse
+
+Pofertaveronesse<-1500+30*Qveronesse
+Pofertat2veronesse<-1500+30*Qveronesse + 1978.5994
+
+puntoslinea_verVT <- data.frame(xVT = c(46.8156, 46.8156), yVT = c(4883.067, 2904.468))
+puntoslinea_hor1VT <- data.frame(x1VT = c(0,46.8156), y1VT = c(4883.067,4883.067))
+puntoslinea_hor2VT <- data.frame(x2VT = c(0,46.8156), y2VT = c(2904.468,2904.468))
+
+ggplot(data = data.frame(Pveronesse, Qveronesse), aes(x = Qveronesse, y = Pveronesse)) +
+  geom_abline(intercept = b0grafveronesse, slope = b1grafveronesse, color = "#495ba3", size = 0.8)+
+  geom_line(aes(y=Pofertaveronesse),color="#e74c3c",linewidth=0.8)+
+  geom_line(aes(y=Pofertat2veronesse),color="#d96214",linewidth=1,linetype = "dashed")+
+  geom_point(x = 46.8156, y = 4883.067, shape = 19, size = 3, color = "black", fill="black") +
+  geom_point(x = 46.8156, y = 2904.468, shape = 19, size = 3, color = "black", fill="black") +
+  geom_line(data = puntoslinea_verVT, aes(x = xVT, y = yVT), color = "purple", size = 0.8) + 
+  geom_line(data = puntoslinea_hor1VT, aes(x = x1VT, y = y1VT), color = "purple", size = 0.8) +   geom_line(data = puntoslinea_hor2VT, aes(x = x2VT, y = y2VT), color = "purple", size = 0.8) +
+  theme_bw() +
+  labs(x = "Cantidad", y = "Precio") + ggtitle("Equilibrio después de los impuestos de la contrapropuesta - Isla Veronesse") +
+  theme_bw() +
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(), panel.background = element_rect(fill = "#F0F0F0")) 
+```
+
+```{r 2)Preámbulo}
+#PUNTO 2
+path <-normalizePath(file.choose())
+#Leer el excel
+financiero <- excel_sheets(path)
+for (i in 1:length(financiero)) {
+  # Leer cada hoja del archivo Excel y guardarla como un objeto separado
+  assign(financiero[i], as.data.frame(read_excel(path, sheet = i)))
+}
+```
+
+```{r 2)lin-lin}
+
+#MODELO LIN-LIN
+diselinlin<-cbind(1,linlin$edad,linlin$`edad^2`,linlin$prim,linlin$bach,linlin$univ,linlin$posg,linlin$homb)
+
+sala<-linlin$sala
+
+listalinlin<-list(linlin$edad,linlin$`edad^2`,linlin$prim,linlin$bach,linlin$univ,linlin$posg,linlin$homb)
+
+#Estadística descriptiva modelo lin-lin
+esta.des<-festdes(listalinlin)
+
+#Estimación
+betaslinlin<-as.data.frame(ols.matr(xdiseno=diselinlin,y=sala))
+rownames(betaslinlin)<- c("b1","b2","b3","b4","b5","b6","b7","b8")
+
+betaslinlin[1,1]->b1linlin
+betaslinlin[2,1]->b2linlin
+betaslinlin[3,1]->b3linlin
+betaslinlin[4,1]->b4linlin
+betaslinlin[5,1]->b5linlin
+betaslinlin[6,1]->b6linlin
+betaslinlin[7,1]->b7linlin
+betaslinlin[8,1]->b8linlin
+estlinlin<-estimacion(xdiseno=diselinlin,y=sala,k=7)
+```
+
+```{r 2)lin-log}
+#MODELO LIN-LOG
+diselinlog<-cbind(1,linlog$logedad,linlog$prim,linlog$bach,linlog$univ,linlog$posg,linlog$homb)
+
+sala<-linlog$sala
+
+listalinlog<-list(linlog$logedad,linlog$prim,linlog$bach,linlog$univ,linlog$posg,linlog$homb)
+
+#Estadística descriptiva modelo lin-log
+esta.des<-festdes(listalinlog)
+
+#Estimación
+betaslinlog<-as.data.frame(ols.matr(xdiseno=diselinlog,y=sala))
+rownames(betaslinlog)<- c("b1","b2","b3","b4","b5","b6","b7")
+
+estlinlog<-estimacion(xdiseno=diselinlog,y=sala,k=6)
+```
+
+```{r 2)log-log}
+#MODELO LOG-LOG
+diseloglog<-cbind(1,loglog$edad,loglog$`edad^2`,loglog$prim,loglog$bach,loglog$univ,loglog$posg,loglog$homb)
+
+logsala<-loglog$logsala
+
+listaloglog<-list(loglog$logedad,loglog$prim,loglog$bach,loglog$univ,loglog$posg,loglog$homb)
+
+#Estadística descriptiva modelo lin-log
+esta.des<-festdes(listaloglog)
+
+#Estimación
+betasloglog<-as.data.frame(ols.matr(xdiseno=diseloglog,y=logsala))
+rownames(betasloglog)<- c("b1","b2","b3","b4","b5","b6")
+
+estloglog<-estimacion(xdiseno=diseloglog,y=logsala,k=6)
+
+```
+
+```{r 2)log-lin}
+
+#MODELO LOG-LIN
+diseloglin<-cbind(1,loglin$edad,loglin$`edad^2`,loglin$prim,loglin$bach,loglin$univ,loglin$posg,loglin$homb)
+
+logsala<-loglin$logsala
+
+listaloglin<-list(loglin$edad,loglin$prim,loglin$bach,loglin$univ,loglin$posg,loglin$homb)
+
+#Estadística descriptiva modelo lin-log
+esta.des<-festdes(listaloglin)
+
+#Estimación
+betasloglin<-as.data.frame(ols.matr(xdiseno=diseloglin,y=logsala))
+rownames(betasloglin)<- c("b1","b2","b3","b4","b5","b6","b7","b8")
+betasloglin[1,1]->b1loglin
+betasloglin[2,1]->b2loglin
+betasloglin[3,1]->b3loglin
+betasloglin[4,1]->b4loglin
+betasloglin[5,1]->b5loglin
+betasloglin[6,1]->b6loglin
+betasloglin[7,1]->b7loglin
+betasloglin[8,1]->b8loglin
+estloglin<-estimacion(xdiseno=diseloglin,y=logsala,k=7)
+
+# Función para la proyección de los flujos de efectivo
+proyloglin <- function(edadinicial, prim=0, bach=0, univ=0, posg=0, homb=0) {
+  
+  proylogsalaini <- exp(b1loglin + b2loglin * edadinicial + b3loglin * edadinicial^2 +
+    b4loglin * prim + b5loglin * bach + b6loglin * univ + b7loglin * posg+ b8loglin*homb)
+  creclogsala<-rep(NA,10)
+  creclogsala[1]<-proylogsalaini
+  for (i in 2:10){
+    creclogsala[i]<-creclogsala[i-1]*1.1
+  }
+  proy <- numeric(length(creclogsala)*12) # Crear un vector vacío con longitud suficiente
+for (j in 1:length(creclogsala)){
+  proy[(12*(j-1)+1):(12*j)] <- rep(creclogsala[j], 12) # Repetir cada elemento 12 veces
+}
+  print(proy)
+  }
+
+# LINLIN ------------------------------------------------------------------
+
+edad<-seq(20,79, 1/50)
+#lin-lin sin estudio
+linlinmuje0estudio<-b1linlin+b2linlin*edad+b3linlin*edad^2
+linlinhomb0estudio<-b1linlin+b2linlin*edad+b3linlin*edad^2+b8linlin
+
+#lin-lin prim
+linlinmujeprim<-b1linlin+b2linlin*edad+b3linlin*edad^2+b4linlin
+linlinhombpri<-b1linlin+b2linlin*edad+b3linlin*edad^2+b4linlin+b8linlin
+
+#lin-lin bach
+linlinmujebach<-b1linlin+b2linlin*edad+b3linlin*edad^2+b5linlin
+linlinhombbach<-b1linlin+b2linlin*edad+b3linlin*edad^2+b5linlin+b8linlin
+
+#lin-lin univ
+linlinmujeuniv<-b1linlin+b2linlin*edad+b3linlin*edad^2+b6linlin
+linlinhombuniv<-b1linlin+b2linlin*edad+b3linlin*edad^2+b6linlin+b8linlin
+
+#lin-lin posg
+linlinmujeposg<-b1linlin+b2linlin*edad+b3linlin*edad^2+b7linlin
+linlinhombposg<-b1linlin+b2linlin*edad+b3linlin*edad^2+b7linlin+b8linlin
+
+
+
+# LOGLIN REVISAR EXPONENCIAL ------------------------------------------------------------------
+
+edad<-seq(20,79, 1/50)
+
+#loglin sin estudio
+loglinmuje0estudio<-exp(b1loglin+b2loglin*edad+b3loglin*edad^2)
+loglinhomb0estudio<-exp(b1loglin+b2loglin*edad+b3loglin*edad^2+b8loglin)
+
+#loglin prim
+loglinmujeprim<-exp(b1loglin+b2loglin*edad+b3loglin*edad^2+b4loglin)
+loglinhombpri<--exp(b1loglin+b2loglin*edad+b3loglin*edad^2+b4loglin+b8loglin)
+
+#loglin bach
+loglinmujebach<--exp(b1loglin+b2loglin*edad+b3loglin*edad^2+b5loglin)
+loglinhombbach<--exp(b1loglin+b2loglin*edad+b3loglin*edad^2+b5loglin+b8loglin)
+
+#loglin univ
+loglinmujeuniv<--exp(b1loglin+b2loglin*edad+b3loglin*edad^2+b6loglin)
+loglinhombuniv<--exp(b1loglin+b2loglin*edad+b3loglin*edad^2+b6loglin+b8loglin)
+
+#loglin posg
+loglinmujeposg<-exp(b1loglin+b2loglin*edad+b3loglin*edad^2+b7loglin)
+loglinhombposg<-exp(b1loglin+b2loglin*edad+b3loglin*edad^2+b7loglin+b8loglin)
+
+
+
+
+## LOGLIN 20 ---------------------------------------------------------------
+muje020<-proyloglin(edadinicial=20)
+homb020<-proyloglin(edadinicial=20, homb=1)
+
+mujeprim20<-proyloglin(edadinicial=20, prim=1)
+hombprim20<-proyloglin(edadinicial=20, prim=1, homb=1)
+
+mujebach20<-proyloglin(edadinicial=20, bach=1)
+hombbach20<-proyloglin(edadinicial=20, bach=1, homb=1)
+
+mujeuniv20<-proyloglin(edadinicial=20, univ=1)
+hombuniv20<-proyloglin(edadinicial=20, univ=1, homb=1)
+
+mujeposg20<-proyloglin(edadinicial=20, posg=1)
+hombposg20<-proyloglin(edadinicial=20, posg=1, homb=1)
+
+flujo20<-cbind(muje020,mujeprim20,mujebach20,mujeuniv20,mujeposg20,homb020,hombprim20,hombbach20,hombuniv20,hombposg20)
+
+## LOGLIN 40 ---------------------------------------------------------------
+muje040<-proyloglin(edadinicial=40)
+homb040<-proyloglin(edadinicial=40, homb=1)
+
+mujeprim40<-proyloglin(edadinicial=40, prim=1)
+hombprim40<-proyloglin(edadinicial=40, prim=1, homb=1)
+
+mujebach40<-proyloglin(edadinicial=40, bach=1)
+hombbach40<-proyloglin(edadinicial=40, bach=1, homb=1)
+
+mujeuniv40<-proyloglin(edadinicial=40, univ=1)
+hombuniv40<-proyloglin(edadinicial=40, univ=1, homb=1)
+
+mujeposg40<-proyloglin(edadinicial=40, posg=1)
+hombposg40<-proyloglin(edadinicial=40, posg=1, homb=1)
+
+flujo40<-cbind(muje040,mujeprim40,mujebach40,mujeuniv40,mujeposg40,homb040,hombprim40,hombbach40,hombuniv40,hombposg40)
+
+## LOGLIN 60 ---------------------------------------------------------------
+muje060<-proyloglin(edadinicial=60)
+homb060<-proyloglin(edadinicial=60, homb=1)
+
+mujeprim60<-proyloglin(edadinicial=60, prim=1)
+hombprim60<-proyloglin(edadinicial=60, prim=1, homb=1)
+
+mujebach60<-proyloglin(edadinicial=60, bach=1)
+hombbach60<-proyloglin(edadinicial=60, bach=1, homb=1)
+
+mujeuniv60<-proyloglin(edadinicial=60, univ=1)
+hombuniv60<-proyloglin(edadinicial=60, univ=1, homb=1)
+
+mujeposg60<-proyloglin(edadinicial=60, posg=1)
+hombposg60<-proyloglin(edadinicial=60, posg=1, homb=1)
+
+flujo60<-cbind(muje060,mujeprim60,mujebach60,mujeuniv60,mujeposg60,homb060,hombprim60,hombbach60,hombuniv60,hombposg60)
+
+expdatos<-as.data.frame(cbind(flujo20*.1,flujo40*.1,flujo60*.1))
+write.xlsx(expdatos, "flujosmensuales.xlsx", sheetName = "flujos")
+```
+
+```{r grafico hombres y mujeres sin estudio total}
+par(bg = "#F0F0F0") 
+plot(edad, loglinhomb0estudio, type = "l", col = "blue", 
+     xlab = "Edad", ylab = "Salario ", main = "Gráfico hombres y mujeres sin estudio")
+lines(edad, loglinmuje0estudio, type = "l", col = "red")
+legend("bottomright", legend = c("Hombres", "Mujeres"), col = c("blue", "red"), lty = 1)
+```
+
+```{r Plot brecha de genero 0 estudio zoom}
+par(bg = "#F0F0F0") 
+plot(edad, loglinhomb0estudio, type = "l", col = "blue", 
+     xlab = "Edad", ylab = "Salario ", main = "Gráfico hombres y mujeres sin estudio",
+     xlim = c(55, 80), ylim = c(3100000,3500000))
+lines(edad, loglinmuje0estudio, type = "l", col = "red")
+legend("bottomright", legend = c("Hombres", "Mujeres"), col = c("blue", "red"), lty = 1)
+#Gráfico en el que se observa la brecha salarial existente entre hombres y mujeres sin estudio desde los 55 hasta los 80. En esta ventana de tiempo se puede observar mejor la diferencia existente
+```
+
+```{r Gráfico hombres y mujeres con posgrado total}
+par(bg = "#F0F0F0") 
+plot(edad, loglinhombposg, type = "l", col = "blue", 
+     xlab = "Edad", ylab = "Salario ", main = "Gráfico hombres y mujeres posgrado")
+lines(edad, loglinmujeposg, type = "l", col = "red")
+legend("bottomright", legend = c("Hombres", "Mujeres"), col = c("blue", "red"), lty = 1)
+```
+
+```{r gráfico hombres y mujeres con posgrado zoom}
+par(bg = "#F0F0F0") 
+plot(edad, loglinhombposg, type = "l", col = "blue", 
+     xlab = "Edad", ylab = "Salario ", main = "Gráfico hombres y mujeres posgrado",
+     xlim = c(55, 80), ylim = c(4500000,4750000))
+lines(edad, loglinmujeposg, type = "l", col = "red")
+legend("bottomright", legend = c("Hombres", "Mujeres"), col = c("blue", "red"), lty = 1)
+#Gráfico en el que se observa la brecha salarial existente entre hombres y mujeres con posgrado desde los 55 hasta los 80. En esta ventana de tiempo se puede observar mejor la diferencia existente y más marcada si la comparamos con la brecha salarial cuando no se tiene ningun nivel de escolaridad. Además de esto se puede observar que cerca a los 65 años tanto hombres como mujeres obtienen su salario maximo.
+```
+

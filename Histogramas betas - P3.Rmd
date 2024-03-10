@@ -1,0 +1,167 @@
+```{r}
+n <- 1000 # tamaño de la muestra
+x <- runif(n, 1, 10) # variable explicativa
+error <- rnorm(n, 0, 3) # término de error
+y <- 3 + 2*x + error # variable respuesta
+
+# Inicializar vector para almacenar los estimadores
+beta_est1 <- rep(0, 1000)
+
+# Simular 1000 escenarios y calcular el estimador en cada uno
+for (i in 1:1000) {
+  set.seed(i) # cambiar la semilla en cada iteración
+  error_i <- rnorm(n, 0, 1)
+  y_i <- 1 + 2*x + error_i #Generar los valores de la variable de respuesta 
+  beta_est1[i] <- sum(y_i/x)/n
+}
+
+# Graficar histograma de los estimadores
+hist(beta_est1, main="Histograma primer beta estimado", xlab=expression(hat(beta)), ylab= "Frecuencia",col="skyblue")
+```
+```{r}
+n <- 1000 # Tamaño de muestra
+x <- rnorm(n, 10, 2) # Variable explicativa
+y <- 3 + 2*x + rnorm(n, 0, 3) # Variable respuesta
+
+# Inicialización de vector para almacenar estimaciones de beta
+beta_est2 <- rep(NA, 1000)
+
+# Bucle for para simular 1000 escenarios
+for (i in 1:1000) {
+  set.seed(i) # cambiar la semilla en cada iteración
+  # Muestreo con reemplazo de los datos
+  index <- sample(n, replace = TRUE)
+  x_i <- x[index]
+  y_i <- y[index]
+  
+  # Cálculo de la estimación de beta
+  beta_est2[i] <- sum(x_i*y_i) / sum(x_i^2)
+}
+
+# Histograma de las estimaciones de beta
+hist(beta_est2, col = "orange", main = "Histograma segundo beta estimado",
+xlab = expression(hat(beta)), ylab = "Frecuencia")
+
+```
+```{r}
+n <- 1000 # Tamaño de muestra
+x <- rnorm(n, 10, 2) # Variable explicativa
+y <- 3 + 2*x + rnorm(n, 0, 3) # Variable respuesta
+
+# Inicialización de vector para almacenar estimaciones de beta
+beta_est3 <- rep(NA, 1000)
+
+# Bucle for para simular 1000 escenarios
+for (i in 1:1000) {
+  set.seed(i) # cambiar la semilla en cada iteración
+  # Muestreo con reemplazo de los datos
+  index <- sample(n, replace = TRUE)
+  x_i <- x[index]
+  y_i <- y[index]
+  
+  # Cálculo de la estimación de beta
+  beta_est3[i] <- media(x_i)*media(y_i)*n^2 / sum(x_i)^2
+}
+
+# Histograma de las estimaciones de beta
+hist(beta_est3, col = "purple", main = "Histograma tercer beta estimado",
+     xlab = expression(hat(beta)), ylab = "Frecuencia")
+
+```
+
+```{r}
+set.seed(123)
+n <- 1000 # Tamaño de muestra
+x <- rnorm(n, 10, 2) # Variable explicativa
+y <- 3 + 2*x + rnorm(n, 0, 3) # Variable respuesta
+
+# Inicialización de vector para almacenar estimaciones de beta
+beta_est4 <- rep(NA, 1000)
+
+# Bucle for para simular 1000 escenarios
+for (i in 1:1000) {
+  # Muestreo con reemplazo de los datos
+  index <- sample(n, replace = TRUE)
+  x_i <- x[index]
+  y_i <- y[index]
+  
+  # Cálculo de la media de x e y
+  x_bar <- mean(x_i)  
+  y_bar <- mean(y_i)
+  
+  # Cálculo de la estimación de beta
+  numerador <- sum(x_i*(y_i - y_bar))
+  denominador <- sum(x_i*(x_i - x_bar))
+  beta_est4[i] <- numerador / denominador
+}
+
+# Histograma de las estimaciones de beta
+hist(beta_est4, col = "#7EBF9B", main = "Histograma cuarto beta estimado",
+     xlab = expression(hat(beta)), ylab = "Frecuencia")
+
+```
+
+```{r}
+# Resumen de los cuatro betas estimados
+par(mfrow = c(2, 2)) # 4 paneles
+
+# Graficas
+hist(beta_est1, main="Histograma primer beta estimado", xlab=expression(hat(beta)), ylab= "Frecuencia",col="skyblue")
+hist(beta_est2, col = "orange", main = "Histograma segundo beta estimado", xlab = expression(hat(beta)), ylab = "Frecuencia")
+hist(beta_est3, col = "purple", main = "Histograma tercer beta estimado", xlab = expression(hat(beta)), ylab = "Frecuencia")
+hist(beta_est4, col = "#7EBF9B", main = "Histograma cuarto beta estimado", xlab = expression(hat(beta)), ylab = "Frecuencia")
+
+# Titulo general
+main_title <- "Resumen de los cuatro betas estimados"
+mtext(main_title, outer = TRUE, cex = 1.5)
+
+```
+
+```{r}
+#Sesgo y varianza estiamdor 1
+# Calcular sesgo y varianza del estimador
+E_xe <- mean(x*error)
+Var_xe <- var(x*error)
+E_x2 <- mean(x^2)
+bias1 <- (E_xe/E_x2)*2 - 2
+variance1 <- Var_xe/(n*E_x2^2)
+
+# Imprimir resultados
+cat("Sesgo:", bias, "\n")
+cat("Varianza:", variance, "\n")
+```
+
+```{r}
+#Sesgo y varianza estimador 2
+sesgo2 <- mean(beta_est2) - 2
+varianza2 <- var(beta_est2)
+print(paste0("Sesgo: ", sesgo))
+print(paste0("Varianza: ", varianza))
+```
+
+```{r}
+#Sesgo y varianza estimador 3
+# Calcular varianza y sesgo del tercer estimador
+var_est3 <- var(beta_est3, na.rm = TRUE)
+sesgo_est3 <- mean(beta_est3, na.rm = TRUE) - 2
+
+# Imprimir varianza y sesgo
+cat("Varianza del tercer estimador:", var_est3, "\n")
+cat("Sesgo del tercer estimador:", sesgo_est3, "\n")
+```
+
+```{r}
+#Varianza y sesgo del cuarto estimador
+var4 <- var(beta_est4) # Varianza
+sesgo4 <- mean(beta_est4) - 2 # Sesgo
+cat("Varianza del cuarto estimador:", var4, "\n")
+cat("Sesgo del cuarto estimador:", sesgo4, "\n")
+```
+
+```{r}
+tablaVar <- data.frame(Estimador = c("beta_est1", "beta_est2", "beta_est3", "beta_est4"),
+                    Sesgo = c(bias1, sesgo2, sesgo_est3, sesgo4),
+                    Varianza = c(variance1, varianza2, var_est3, var4))
+tablaVar
+```
+
